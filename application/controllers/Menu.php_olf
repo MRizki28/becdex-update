@@ -1,0 +1,272 @@
+<?php
+defined('BASEPATH') or exit('No direct script access allowed');
+
+class Menu extends CI_Controller
+{
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    public function index()
+    {
+        $data['title'] = 'Menu Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+
+        $data['menu'] = $this->db->get('user_menu')->result_array();
+
+        $this->form_validation->set_rules('menu', 'Menu', 'required');
+
+        if ($this->form_validation->run() == false) {
+            $this->load->view('templates/header', $data);
+            $this->load->view('templates/sidebar', $data);
+            $this->load->view('templates/topbar', $data);
+            $this->load->view('menu/index', $data);
+            $this->load->view('templates/footer');
+        } else {
+            $this->db->insert('user_menu', ['menu' => $this->input->post('menu')]);
+            $this->session->set_flashdata('message', '<div class="alert alert-success" role="alert">New menu added!</div>');
+            redirect('menu');
+        }
+    }
+
+
+    public function submenu()
+    {
+        $data['title'] = 'Submenu Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $this->load->model('Menu_model', 'menu');
+
+        $data['subMenu'] = $this->menu->getSubMenu();
+        $data['menu'] = $this->db->get('user_menu')->result_array();
+
+        $this->form_validation->set_rules('title', 'Title', 'required');
+        $this->form_validation->set_rules('menu_id', 'Menu', 'required');
+        $this->form_validation->set_rules('url', 'URL', 'required');
+        $this->form_validation->set_rules('icon', 'icon', 'required');
+
+        if ($this->form_validation->run() ==  false) {
+            $this->load->view('templates/header', $data);
+            $this->load->view('templates/sidebar', $data);
+            $this->load->view('templates/topbar', $data);
+            $this->load->view('menu/submenu', $data);
+            $this->load->view('templates/footer');
+        } else {
+            $data = [
+                'title' => $this->input->post('title'),
+                'menu_id' => $this->input->post('menu_id'),
+                'url' => $this->input->post('url'),
+                'icon' => $this->input->post('icon'),
+                'is_active' => $this->input->post('is_active')
+            ];
+            $this->db->insert('user_sub_menu', $data);
+            $this->session->set_flashdata('message', '<div class="alert alert-success" role="alert">New sub menu added!</div>');
+            redirect('menu/submenu');
+        }
+    }
+
+    public function addMenu()
+    {
+        $update = $this->db->insert('user_menu', ['menu' => $this->input->post('menu')]);
+        echo "<script>alert('Menu success inserted'); window.location.href = '".base_url('menu')."'</script>";
+    }
+
+    public function updateMenu()
+    {
+        $update = $this->db->where('id', $this->input->post('id'))->update('user_menu', ['menu' => $this->input->post('menu')]);
+        echo "<script>alert('Menu success updated'); window.location.href = '".base_url('menu')."'</script>";
+    }
+
+    public function deleteMenu()
+    {
+        $cek = $this->db->where('menu_id', $this->input->get('id'))->get('user_sub_menu')->num_rows();
+        if($cek > 0){
+            echo json_encode(['status' => 'gagal']);
+        } else {
+            $delete = $this->db->delete('user_menu', ['id' => $this->input->get('id')]);
+            echo json_encode(['status' => 'sukses']);
+        }
+    }
+
+    public function addSubMenu()
+    {
+        $update = $this->db->insert('user_sub_menu', ['menu_id' => $this->input->post('menu_id'), 'title' => $this->input->post('title'), 'url' => $this->input->post('url'), 'icon' => $this->input->post('icon'), 'is_active' => $this->input->post('is_active')]);
+        echo "<script>alert('Sub Menu success inserted'); window.location.href = '".base_url('menu/subMenu')."'</script>";
+    }
+
+    public function updateSubMenu()
+    {
+        $update = $this->db->where('id', $this->input->post('id'))->update('user_sub_menu', ['menu_id' => $this->input->post('menu_id'), 'title' => $this->input->post('title'), 'url' => $this->input->post('url'), 'icon' => $this->input->post('icon'), 'is_active' => $this->input->post('is_active')]);
+        echo "<script>alert('Sub Menu success updated'); window.location.href = '".base_url('menu/subMenu')."'</script>";
+    }
+
+    public function deleteSubMenu()
+    {
+        $delete = $this->db->delete('user_sub_menu', ['id' => $this->input->get('id')]);
+        echo json_encode(['status' => 'sukses']);
+    }
+
+    public function admin_audit()
+    {
+        $data['title'] = 'Admin Audit';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+
+        $data['menu'] = $this->db->get('user_menu')->result();
+        $data['data'] = $this->db->select('user.id, user.name, user.email, user.password_default, user.date_created')->from('user')->join('user_role', 'user_role.id = user.role_id')->where('user.role_id', '6')->get()->result();
+        $data['hak_akses_menu'] = $this->db->select('user_menu.id, user_menu.menu, user_access_menu.id as user_access_menu_id')->from('user_access_menu')->where('user_access_menu.role_id', '6')->join('user_menu', 'user_menu.id = user_access_menu.menu_id')->get()->result();
+        $this->form_validation->set_rules('menu', 'Menu', 'required');
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('menu/admin_audit', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function generateRandomString($length = 10) {
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $charactersLength = strlen($characters);
+        $randomString = '';
+        for ($i = 0; $i < $length; $i++) {
+            $randomString .= $characters[random_int(0, $charactersLength - 1)];
+        }
+        return $randomString;
+    }
+
+    public function store_admin_audit()
+    {
+        $generate = $this->generateRandomString();
+        $this->db->insert('user', [
+            'name' => $this->input->post('name'),
+            'email' => $this->input->post('email'),
+            'image' => '',
+            'password' => password_hash($generate, PASSWORD_DEFAULT),
+            'password_default' => $generate,
+            'role_id' => 6,
+            'is_active' => 1,
+            'date_created' => time()
+        ]);
+        echo "<script>alert('Admin audit bernama ".$this->input->post('name')." berhasil di tambah'); window.location.href = '".base_url('menu/admin_audit')."'</script>";
+
+    }
+
+    public function update_admin_audit()
+    {
+        $this->db->where('id', $this->input->post('id'))->update('user', [
+            'name' => $this->input->post('name'),
+            'email' => $this->input->post('email')
+        ]);
+        echo "<script>alert('Admin audit bernama ".$this->input->post('name')." berhasil di edit'); window.location.href = '".base_url('menu/admin_audit')."'</script>";
+    }
+
+    public function delete_admin_audit()
+    {
+        $delete = $this->db->where('id', $this->input->get('id'))->delete('user');
+        $msg['status'] = 'tidak';
+        if ($delete) {
+            $msg['status'] = 'sukses';
+        }
+        echo json_encode($msg);
+    }
+
+    public function admin_finance()
+    {
+        $data['title'] = 'Admin Finance';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+
+        $data['menu'] = $this->db->get('user_menu')->result();
+        $data['data'] = $this->db->select('user.id, user.name, user.email, user.password_default, user.date_created')->from('user')->join('user_role', 'user_role.id = user.role_id')->where('user.role_id', '7')->get()->result();
+        $data['hak_akses_menu'] = $this->db->select('user_menu.id, user_menu.menu, user_access_menu.id as user_access_menu_id')->from('user_access_menu')->where('user_access_menu.role_id', '7')->join('user_menu', 'user_menu.id = user_access_menu.menu_id')->get()->result();
+
+        $this->form_validation->set_rules('menu', 'Menu', 'required');
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('menu/admin_finance', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function store_admin_finance()
+    {
+        $generate = $this->generateRandomString();
+        $this->db->insert('user', [
+            'name' => $this->input->post('name'),
+            'email' => $this->input->post('email'),
+            'image' => '',
+            'password' => password_hash($generate, PASSWORD_DEFAULT),
+            'password_default' => $generate,
+            'role_id' => 7,
+            'is_active' => 1,
+            'date_created' => time()
+        ]);
+        echo "<script>alert('Admin finance bernama ".$this->input->post('name')." berhasil di tambah'); window.location.href = '".base_url('menu/admin_finance')."'</script>";
+    }
+
+    public function update_admin_finance()
+    {
+        $this->db->where('id', $this->input->post('id'))->update('user', [
+            'name' => $this->input->post('name'),
+            'email' => $this->input->post('email')
+        ]);
+        echo "<script>alert('Admin finance bernama ".$this->input->post('name')." berhasil di edit'); window.location.href = '".base_url('menu/admin_finance')."'</script>";
+    }
+
+    public function delete_admin_finance()
+    {
+        $delete = $this->db->where('id', $this->input->get('id'))->delete('user');
+        $msg['status'] = 'tidak';
+        if ($delete) {
+            $msg['status'] = 'sukses';
+        }
+        echo json_encode($msg);
+    }
+
+    public function add_hak_akses_admin_audit()
+    {
+        $cek = $this->db->where('role_id', '6')->where('menu_id', $this->input->post('menu'))->get('user_access_menu')->result();
+        if(count($cek) > 0){
+            echo "<script>alert('Menu ini telah dipilih sebelumnya'); window.location.href = '".base_url('menu/admin_audit')."'</script>";
+        } else {
+            $this->db->insert('user_access_menu', [
+                'role_id' => '6',
+                'menu_id' => $this->input->post('menu')
+            ]);
+            echo "<script>alert('Berhasil tambah hak akses menu admin audit'); window.location.href = '".base_url('menu/admin_audit')."'</script>";
+        }
+    }
+
+    public function delete_hak_akses_admin_audit()
+    {
+        $delete = $this->db->where('id', $this->input->get('id'))->delete('user_access_menu');
+        $msg['status'] = 'tidak';
+        if ($delete) {
+            $msg['status'] = 'sukses';
+        }
+        echo json_encode($msg);
+    }
+
+    public function add_hak_akses_admin_finance()
+    {
+        $cek = $this->db->where('role_id', '7')->where('menu_id', $this->input->post('menu'))->get('user_access_menu')->result();
+        if(count($cek) > 0){
+            echo "<script>alert('Menu ini telah dipilih sebelumnya'); window.location.href = '".base_url('menu/admin_finance')."'</script>";
+        } else {
+            $this->db->insert('user_access_menu', [
+                'role_id' => '7',
+                'menu_id' => $this->input->post('menu')
+            ]);
+            echo "<script>alert('Berhasil tambah hak akses menu admin finance'); window.location.href = '".base_url('menu/admin_finance')."'</script>";
+        }
+    }
+
+    public function delete_hak_akses_admin_finance()
+    {
+        $delete = $this->db->where('id', $this->input->get('id'))->delete('user_access_menu');
+        $msg['status'] = 'tidak';
+        if ($delete) {
+            $msg['status'] = 'sukses';
+        }
+        echo json_encode($msg);
+    }
+}

@@ -1,0 +1,817 @@
+<?php
+defined('BASEPATH') or exit('No direct script access allowed');
+
+class Management extends CI_Controller
+{
+    public function __construct()
+    {
+        parent::__construct();
+        is_logged_in();
+        $this->load->model('M_User');
+        $this->load->model('M_Indicator');
+        $this->load->model('M_Document');
+        $this->load->model('M_Becdex');
+        $this->load->model('M_Country');
+        $this->load->model('M_Company_Field');
+        $this->load->model('M_Submission');
+        $this->load->model('M_Location_Survey');
+        $this->load->model('M_Certificate');
+        $this->load->model('M_Help');
+        $this->load->library('Pdf');
+    }
+
+    // User Management Start
+
+    public function userManagementIndex()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+
+        $data['title'] = 'User Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['user_belum_verif'] = $this->db->get_where('user', ['is_active' => 0])->num_rows();
+        $data['total_message'] = $this->db->count_all('tb_help');
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/user_index', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function userManagementNotVerif()
+    {
+        $data['title'] = 'Verification User Register';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/user_verification', $data);
+        $this->load->view('templates/footer');
+    }
+    public function userManagementHelp()
+    {
+        $data['title'] = 'Show all Message';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $this->load->model('M_Help');
+        $data['help'] = $this->M_Help->getAllHelp();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/help_index', $data);
+        $this->load->view('templates/footer');
+    }
+
+
+
+    public function showAllHelp()
+    {
+        $result = $this->M_Help->getAllHelp();
+        echo json_encode($result);
+    }
+
+    public function showAllUser()
+    {
+        $result = $this->M_User->showAllUser();
+        echo json_encode($result);
+    }
+
+    public function showAllUserNotVerif()
+    {
+        $this->db->select('*');
+        $this->db->from('user');
+        $this->db->join('company_detail', 'company_detail.user_id = user.id');
+        $this->db->join('company_field', 'company_detail.company_field = company_field.id_company_field');
+        $this->db->join('countries', 'countries.iso = company_detail.company_country');
+        $this->db->where('user.is_active = 0 ');
+        $result = $this->db->get()->result_array();
+        echo json_encode($result);
+    }
+
+    public function acceptUser()
+    {
+        $this->db->where('id', $this->input->post('id'))->update('user', ['is_active' => '1']);
+        echo "<script>alert('User successfully accepted'); window.location.href = '" . base_url('management/userManagementNotVerif') . "'</script>";
+    }
+
+    public function rejectUser()
+    {
+        $this->db->where('id', $this->input->post('id'))->update('user', ['is_active' => '2']);
+        echo "<script>alert('User rejected'); window.location.href = '" . base_url('management/userManagementNotVerif') . "'</script>";
+    }
+    // User Management End
+
+    //Document by User Start
+    public function documentByUser($id)
+    {
+        if ($id) {
+            $data['dataIndicator'] = $this->M_Indicator->showAllIndicator();
+            $data['title'] = 'Document Submission';
+            $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+            $data['id'] = $id;
+
+            $this->load->view('templates/header', $data);
+            $this->load->view('templates/sidebar', $data);
+            $this->load->view('templates/topbar', $data);
+            $this->load->view('management/document_by_user', $data);
+            $this->load->view('templates/footer');
+        } else {
+            redirect('management/userManagementIndex');
+        }
+    }
+
+    public function showAllDocumentByUser($id)
+    {
+        $result = $this->M_Document->showAllDocumentByUser($id);
+        echo json_encode($result);
+    }
+    //Document by User End
+
+    //Becdex Management Start
+    public function aspect()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+        $data['title'] = 'Aspect Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/aspect', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function showAllAspect()
+    {
+        $result = $this->M_Becdex->showAllAspect();
+        echo json_encode($result);
+    }
+
+    public function editAspect()
+    {
+        $result = $this->M_Becdex->editAspect();
+        echo json_encode($result);
+    }
+
+    public function updateAspect()
+    {
+        $result = $this->M_Becdex->updateAspect();
+        $msg['success'] = false;
+        $msg['type'] = 'edit';
+        if ($result) {
+            $msg['success'] = true;
+        }
+        echo json_encode($msg);
+    }
+
+    public function outcome()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+        $data['title'] = 'Outcome Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['dataOutcome'] = $this->M_Becdex->showAllAspect();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/outcome', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function showAllOutcome()
+    {
+        $result = $this->M_Becdex->showAllOutcome();
+        echo json_encode($result);
+    }
+
+    public function editOutcome()
+    {
+        $result = $this->M_Becdex->editOutcome();
+        echo json_encode($result);
+    }
+
+    public function insertOutcome()
+    {
+        $insertOutcome = $this->db->insert('outcome', ['outcome_name' => $this->input->post('outcome_name'), 'aspect_id' => $this->input->post('aspect_id')]);
+        echo "<script>alert('Outcome success uploaded'); window.location.href = '" . base_url('management/outcome') . "'</script>";
+    }
+
+    public function updateOutcome()
+    {
+        $result = $this->M_Becdex->updateOutcome();
+        $msg['success'] = false;
+        $msg['type'] = 'edit';
+        if ($result) {
+            $msg['success'] = true;
+        }
+
+        echo json_encode($msg);
+    }
+
+    public function principle()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+        $data['title'] = 'Principle Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['dataOutcome'] = $this->M_Becdex->showAllOutcome();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/principle', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function showAllPrinciple()
+    {
+        $result = $this->M_Becdex->showAllPrinciple();
+        echo json_encode($result);
+    }
+
+    public function editPrinciple()
+    {
+        $result = $this->M_Becdex->editPrinciple();
+        echo json_encode($result);
+    }
+
+    public function insertPrinciple()
+    {
+        $insertPrinciple = $this->db->insert('principle', ['principle_name' => $this->input->post('principle_name'), 'outcome_id' => $this->input->post('outcome_id')]);
+        echo "<script>alert('Principle success uploaded'); window.location.href = '" . base_url('management/principle') . "'</script>";
+    }
+
+    public function updatePrinciple()
+    {
+        $result = $this->M_Becdex->updatePrinciple();
+        $msg['success'] = false;
+        $msg['type'] = 'edit';
+        if ($result) {
+            $msg['success'] = true;
+        }
+
+        echo json_encode($msg);
+    }
+
+    public function indicator()
+    {
+        $data['title'] = 'Indicator Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['dataPrinciple'] = $this->M_Becdex->showAllPrinciple();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/indicator', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function showAllIndicator()
+    {
+        $result = $this->M_Becdex->showAllIndicator();
+        echo json_encode($result);
+    }
+
+    public function editIndicator()
+    {
+        $result = $this->M_Becdex->editIndicator();
+        echo json_encode($result);
+    }
+
+    public function updateIndicator()
+    {
+        $result = $this->M_Becdex->updateIndicator();
+        $msg['success'] = false;
+        $msg['type'] = 'edit';
+        if ($result) {
+            $msg['success'] = true;
+        }
+
+        echo json_encode($msg);
+    }
+
+    //Becdex Management End
+
+    //Country Management Start
+
+    public function country()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+        $data['title'] = 'Country Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/country', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function showAllCountry()
+    {
+        $result = $this->M_Country->showAllCountry();
+        echo json_encode($result);
+    }
+
+    public function addCountry()
+    {
+
+        $result = $this->M_Country->addCountry();
+        if ($result) {
+            $msg['type'] = 'add';
+            $msg['success'] = false;
+            if ($result) {
+                $msg['success'] = true;
+            }
+
+            echo json_encode($msg);
+        } else {
+            $msg['success'] = false;
+        }
+    }
+
+    public function editCountry()
+    {
+        $result = $this->M_Country->editCountry();
+        echo json_encode($result);
+    }
+
+    public function updateCountry()
+    {
+        $result = $this->M_Country->updateCountry();
+        $msg['success'] = false;
+        $msg['type'] = 'edit';
+        if ($result) {
+            $msg['success'] = true;
+        }
+
+        echo json_encode($msg);
+    }
+
+    public function deleteCountry()
+    {
+        $result = $this->M_Country->deleteCountry();
+        $msg['success'] = false;
+        if ($result) {
+            $msg['success'] = true;
+        }
+        // var_dump($result);
+        echo json_encode($msg);
+    }
+    //Country Managemenet End
+
+    //Company_Field Management Start
+
+    public function company_field()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+        $data['title'] = 'Company Field Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/company_field', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function showAllCompanyField()
+    {
+        $result = $this->M_Company_Field->showAllCompanyField();
+        echo json_encode($result);
+    }
+
+    public function addCompanyField()
+    {
+
+        $result = $this->M_Company_Field->addCompanyField();
+        if ($result) {
+            $msg['type'] = 'add';
+            $msg['success'] = false;
+            if ($result) {
+                $msg['success'] = true;
+            }
+
+            echo json_encode($msg);
+        } else {
+            $msg['success'] = false;
+        }
+    }
+
+    public function editCompanyField()
+    {
+        $result = $this->M_Company_Field->editCompanyField();
+        echo json_encode($result);
+    }
+
+    public function updateCompanyField()
+    {
+        $result = $this->M_Company_Field->updateCompanyField();
+        $msg['success'] = false;
+        $msg['type'] = 'edit';
+        if ($result) {
+            $msg['success'] = true;
+        }
+
+        echo json_encode($msg);
+    }
+
+    public function deleteCompanyField()
+    {
+        $result = $this->M_Company_Field->deleteCompanyField();
+        $msg['success'] = false;
+        if ($result) {
+            $msg['success'] = true;
+        }
+        // var_dump($result);
+        echo json_encode($msg);
+    }
+
+    //Company_Field Management End
+
+    //Question Management Start 
+
+    public function question($id)
+    {
+        $data['title'] = 'Question Management';
+        $data['id'] = $id;
+        $data['myIndicator'] = $this->db->get_where('indicator', ['id_indicator' => $id])->row_array();
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['dataIndicator'] = $this->M_Becdex->showAllIndicator();
+        // var_dump($data['dataIndicator']);
+        // die();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/question', $data);
+        $this->load->view('templates/footer');
+    }
+
+    //Question End
+
+    // Submission Verification Start
+
+    public function submissionManagement()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+
+        $data['title'] = 'Submission Management';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/submission_verification', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function submissionDetail($id)
+    {
+        $data['cek_certificate'] = $this->db->where('id_submission', $id)->get('certificate_user')->num_rows();
+        $data['title'] = 'Submission Detail';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['category_certificate'] = $this->db->get('certificate')->result();
+        $data['id'] = $id;
+        $data['submission_detail'] = $this->M_Submission->showThisSubmission($id);
+        $data['becdex_cat'] = $this->db->get('becdex_cat')->result();
+        if ($data['submission_detail']['id_submission_status'] <= 4) {
+            $this->db->where('id_submission', $id)->update('submission', ['submission_status_id' => '3']);
+         }
+        if ($data['submission_detail']['submission_status_id'] == '3' || $data['submission_detail']['submission_status_id'] == '2' || $data['submission_detail']['submission_status_id'] == '5' || $data['submission_detail']['submission_status_id'] == '7') {
+            $this->load->view('templates/header', $data);
+            $this->load->view('templates/sidebar', $data);
+            $this->load->view('templates/topbar', $data);
+            $this->load->view('management/submission_detail', $data);
+            $this->load->view('templates/footer');
+        } else {
+            redirect('admin');
+        }
+    }
+
+    public function showThisSubmission($id)
+    {
+        $result = $this->M_Submission->showThisSubmission($id);
+        echo json_encode($result);
+    }
+
+    // Submission Verification End
+
+    // Payment Verfication Start
+    public function paymentManagement()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+
+        $data['title'] = 'Payment Verification';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/payment_management', $data);
+        $this->load->view('templates/footer');
+    }
+
+
+
+    // Payment Verification End
+
+    // Certificate Verfication Start
+
+    public function certificateTemplate($id)
+    {
+        $data['certified'] = $this->M_Submission->showAllCertifiedSubmission($id);
+        $this->load->view('management/certificate_template', $data);
+    }
+
+    public function certificateManagement($id)
+    {
+        $data['title'] = 'Certificate';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['certified'] = $this->M_Submission->showAllCertifiedSubmission($id);
+        $data['id'] = $id;
+
+        // var_dump($data['certified']);
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/certificate_management', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function generateCertificate($id)
+    {
+
+        $result = [1];
+        if ($result) {
+            $msg['type'] = 'add';
+            $msg['success'] = false;
+            if ($result) {
+                $msg['success'] = true;
+                redirect('management/certificateManagement/' . $id);
+            }
+
+            echo json_encode($msg);
+        } else {
+            $msg['success'] = false;
+            redirect('management/submissionDetail/' . $id);
+        }
+    }
+
+    // Certificate Verification End
+
+    //Location Survey Start
+    public function showAllLocationSurveyBySubmission($id)
+    {
+        $result = $this->M_Location_Survey->showAllLocationSurveyBySubmission($id);
+        echo json_encode($result);
+    }
+
+    public function addLocationSurvey($id)
+    {
+        $updateSubmission = $this->db->where('id_submission', $id)->update('submission', ['submission_status_id' => '7']);
+        $result = $this->M_Location_Survey->addLocationSurvey($id);
+        if ($result) {
+            $msg['type'] = 'add';
+            $msg['success'] = false;
+            if ($result) {
+                $msg['success'] = true;
+            }
+
+            echo json_encode($msg);
+        } else {
+            $msg['success'] = false;
+        }
+    }
+
+    //Location Survey Ends
+
+    // Certificate
+    public function certificate()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+
+        $data['title'] = 'Management Master Data Certificate';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        // var_dump($data['certified']);
+
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/certificate', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function showAllCertificate()
+    {
+        $result = $this->M_Certificate->showAllCertificate();
+        echo json_encode($result);
+    }
+
+    public function addCertificate()
+    {
+        $size   = $_FILES['file_certificate']['size'];
+        $type   = $_FILES['file_certificate']['type'];
+        $folder = "./assets/img/certificate";
+        // upload 
+        $extension = ['image/jpg', 'image/png', 'image/jpeg'];
+
+        if ($size < 10024000 && in_array($type, $extension)) {
+            $tmp = explode('.', $_FILES["file_certificate"]["name"]);
+            $file_extension = end($tmp);
+            $target = rand(1, 9999999) . '.' . $file_extension;
+            if (move_uploaded_file($_FILES["file_certificate"]["tmp_name"], 'assets/img/certificate/' . $target)) {
+                $field = array(
+                    'kategori' => $this->input->post('category'),
+                    'file' => $target,
+                    'keterangan' => $this->input->post('keterangan')
+                );
+
+                $this->db->insert('certificate', $field);
+
+                echo "<script>alert('Certificate success uploaded'); window.location.href = '" . base_url('management/certificate') . "'</script>";
+            } else {
+                echo "<script>alert('Certificate failed upload, Contact Admin!'); window.location.href = '" . base_url('management/certificate') . "'</script>";
+            }
+        }
+    }
+
+    public function editCertificate()
+    {
+        $result = $this->M_Certificate->editCertificate();
+        echo json_encode($result);
+    }
+
+    public function updateCertificate()
+    {
+        $name   = $_FILES['file_certificate']['name'];
+        $size   = $_FILES['file_certificate']['size'];
+        $type   = $_FILES['file_certificate']['type'];
+        $folder = "./assets/img/certificate";
+        // upload 
+
+        $extension = ['image/jpg', 'image/png', 'image/jpeg'];
+
+        if ($name != '') {
+            if ($size < 10024000 && in_array($type, $extension)) {
+                $tmp = explode('.', $_FILES["file_certificate"]["name"]);
+                $file_extension = end($tmp);
+                $target = rand(1, 9999999) . '.' . $file_extension;
+                if (move_uploaded_file($_FILES["file_certificate"]["tmp_name"], 'assets/img/certificate/' . $target)) {
+                    $field = array(
+                        'kategori' => $this->input->post('category'),
+                        'file' => $target,
+                        'keterangan' => $this->input->post('keterangan')
+                    );
+                    $this->db->where('id_certificate', $this->input->post('id'))->update('certificate', $field);
+
+                    echo "<script>alert('Certificate success edited'); window.location.href = '" . base_url('management/certificate') . "'</script>";
+                } else {
+                    echo "<script>alert('Certificate failed upload, Contact Admin!'); window.location.href = '" . base_url('management/certificate') . "'</script>";
+                }
+            }
+        } else {
+            $field = array(
+                'kategori' => $this->input->post('category'),
+                'file' => $this->input->post('gambar_lama'),
+                'keterangan' => $this->input->post('keterangan')
+            );
+
+            $this->db->where('id_certificate', $this->input->post('id'))->update('certificate', $field);
+            echo "<script>alert('Certificate success edited'); window.location.href = '" . base_url('management/certificate') . "'</script>";
+        }
+    }
+
+    public function deleteCertificate()
+    {
+        $cek = $this->db->where('id_certificate', $this->input->get('id'))->get('certificate_user')->num_rows();
+        if ($cek > 0) {
+            echo "<script>alert('The certificate has been used by several users'); window.location.href = '" . base_url('management/certificate') . "'</script>";
+        } else {
+            $result = $this->M_Certificate->deleteCertificate();
+            $msg['success'] = false;
+            if ($result) {
+                $msg['success'] = true;
+            }
+            echo json_encode($msg);
+        }
+    }
+
+    // end Certificate
+
+    // settings
+    public function settings()
+    {
+        $role_id = $this->session->userdata('role_id');
+        if ($role_id == 1 | $role_id == 7 | $role_id == 6 | $role_id == 10) {
+        }else {
+            redirect('user');
+        }
+
+
+        $data['title'] = 'Settings Midtrans And Nominal';
+        $data['user'] = $this->db->get_where('user', ['email' => $this->session->userdata('email')])->row_array();
+        $data['setting'] = $this->db->get('setting')->row();
+        $this->load->view('templates/header', $data);
+        $this->load->view('templates/sidebar', $data);
+        $this->load->view('templates/topbar', $data);
+        $this->load->view('management/settings', $data);
+        $this->load->view('templates/footer');
+    }
+
+    public function update_setting()
+    {
+        $submit = $this->input->post('submit');
+        if (isset($submit)) {
+            $cek = $this->db->get('setting')->num_rows();
+            if ($cek == 0) {
+                $this->db->insert('setting', ['client_key' => $this->input->post('client_key'), 'server_key' => $this->input->post('server_key'), 'nominal' => $this->input->post('nominal')]);
+                echo "<script>alert('Setting success updated'); window.location.href = '" . base_url('management/settings') . "'</script>";
+            } else {
+                $this->db->where('id_setting', $this->input->post('id'));
+                $this->db->update('setting', ['client_key' => $this->input->post('client_key'), 'server_key' => $this->input->post('server_key'), 'nominal' => $this->input->post('nominal')]);
+                echo "<script>alert('Setting success updated'); window.location.href = '" . base_url('management/settings') . "'</script>";
+            }
+        }
+    }
+
+   
+    public function cetak_certificate($id)
+    {
+
+        $submission = $this->db->where('id_submission', $id)->get('submission')->row();
+        $cek = $this->db->where('id_submission', $id)->get('certificate_user')->num_rows();
+        $tombol = $this->input->get('send');
+        $year3 = strtotime($this->input->get('published_date'));
+        $convertYear = date('Y-m-d', strtotime('+3 years', $year3));
+        if (isset($tombol)) {
+            $updateStatusSubmission = $this->db->where('id_submission', $id)->update('submission', ['submission_status_id' => '5']);
+            $updateCompanyDetail = $this->db->where('user_id', $submission->user_id)->update('company_detail', ['becdex_category_id' => $this->input->get('category_becdex')]);
+            if ($cek > 0) {
+                $insert = $this->db->where('id_submission', $id)->update('certificate_user', ['id_certificate' => $this->input->get('category_certificate'), 'tanggal_publish' => $this->input->get('published_date'), 'valid_until' => $convertYear, 'mmic' => $this->input->get('mmic')]);
+            } else {
+                $insert = $this->db->insert('certificate_user', ['id_submission' => $id, 'id_certificate' => $this->input->get('category_certificate'), 'tanggal_publish' => $this->input->get('published_date'), 'valid_until' => $convertYear, 'id_user' => $submission->user_id, 'mmic' => $this->input->get('mmic')]);
+            }            
+            echo "<script>alert('Certificate sent'); window.location.href = '" . base_url('management/submissionDetail/' . $id . '/17') . "'</script>";
+            exit;
+        }
+        $data['certificate'] = $this->db->where('id_certificate', $this->input->get('category_certificate'))->get('certificate')->row();
+        $data['count_certificate'] = count($this->db->where('id_certificate', $this->input->get('categori_certificate'))->get('certificate')->result()) + 1;
+        $data['published_date'] = $this->input->get('published_date');
+        $data['mmic'] = $this->input->get('mmic');
+        $data['valid_until'] = $convertYear;
+        $data['direktur'] = $this->input->get('direktur');
+        $data['user_detail'] = (object) $this->M_User->selectUserById($submission->user_id);
+        $data['detail_submission'] = $submission;
+        $this->load->view('certificate', $data);
+    }
+
+    public function uploadQrCodeAlamat()
+    {
+        // cek jika ada gambar yang akan diupload
+        $upload_image = $_FILES['qrcode_alamat']['name'];
+
+        if ($upload_image) {
+            $config['allowed_types'] = 'jpg';
+            $config['max_size']      = '2048';
+            $config['upload_path'] = './assets/img/qrcode_alamat/';
+            $config['encrypt_name'] = TRUE;
+
+            $this->load->library('upload', $config, 'qrcode_alamat');
+            $this->qrcode_alamat->initialize($config);
+
+            if ($this->qrcode_alamat->do_upload('qrcode_alamat')) {
+                $new_image = $this->qrcode_alamat->data('file_name');
+                $this->db->where('id_submission', $this->input->post('id_submission'))->update('submission', ['qr_code_alamat' => $new_image]);
+                echo "<script>alert('Qrcode Address uploaded'); window.location.href = '" . base_url('management/submissionDetail/' . $this->input->post('id_submission') . '/17') . "'</script>";
+            }
+        }
+    }
+}
